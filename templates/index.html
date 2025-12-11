@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Flood Dashboard</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body{
+            font-family: Arial, Helvetica, sans-serif;
+            background:#eef5ff;
+            padding:30px;
+        }
+
+        h1{
+            color:#003399;
+        }
+
+        .container{
+            display:flex;
+            gap:20px;
+            flex-wrap:wrap;
+        }
+
+        .card{
+            background:white;
+            padding:20px;
+            border-radius:12px;
+            box-shadow:0 3px 8px rgba(0,0,0,0.15);
+            width:220px;
+        }
+
+        .value{
+            font-size:32px;
+            font-weight:bold;
+        }
+
+        .status-badge{
+            padding:6px 12px;
+            border-radius:8px;
+            color:white;
+            font-weight:bold;
+            display:inline-block;
+            margin-top:8px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🌊 Real-Time Flood Monitoring Dashboard</h1>
+<p>Live data updates every second</p><br>
+
+<div class="container">
+
+    <div class="card">
+        <h3>Water Level</h3>
+        <div id="water_level" class="value">--</div>
+    </div>
+
+    <div class="card">
+        <h3>Max Temp</h3>
+        <div id="max_temp" class="value">--</div>
+    </div>
+
+    <div class="card">
+        <h3>Flood Probability</h3>
+        <div id="flood_probability" class="value">--</div>
+    </div>
+
+    <div class="card">
+        <h3>Risk Status</h3>
+        <span id="risk_status" class="status-badge" style="background:gray;">
+            Loading...
+        </span>
+    </div>
+
+    <div class="card">
+        <h3>ETA (Prediction)</h3>
+        <div id="eta" class="value">--</div>
+    </div>
+
+</div>
+
+<br><br>
+
+<!-- LIVE CHART -->
+<canvas id="liveChart" width="800" height="350"></canvas>
+
+<script>
+/* ------------------- CHART SETUP ---------------------- */
+let ctx = document.getElementById("liveChart").getContext("2d");
+
+let chart = new Chart(ctx, {
+    type: "line",
+    data:{
+        labels: [],
+        datasets:[{
+            label:"Water Level",
+            data:[],
+            borderWidth:2,
+            pointRadius:0
+        }]
+    },
+    options:{
+        responsive:true,
+        animation:false,
+        scales:{
+            x:{display:false},
+            y:{beginAtZero:true}
+        }
+    }
+});
+
+/* ------------------- UPDATE LOGIC ---------------------- */
+
+function update(){
+    fetch("/data").then(r=>r.json()).then(d=>{
+
+        // update values
+        document.getElementById("water_level").innerText = d.water_level;
+        document.getElementById("max_temp").innerText = d.max_temp;
+        document.getElementById("flood_probability").innerText =
+            Math.round(d.flood_probability*100)+"%";
+
+        // >>> NEW LINE ADDED HERE <<<
+        document.getElementById("eta").innerText =
+            d.eta_minutes ? (d.eta_minutes + " min") : "--";
+
+        // status color logic
+        updateStatus(d.flood_probability);
+
+        // update chart
+        chart.data.labels.push("");
+        chart.data.datasets[0].data.push(d.water_level);
+
+        if(chart.data.labels.length>60){ // keep last 60 points
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+        }
+
+        chart.update();
+    });
+}
+
+
+/* -------------- RISK BADGE COLOR ---------------- */
+function updateStatus(p){
+
+    let badge=document.getElementById("risk_status");
+
+    if(p<0.3){
+        badge.style.background="green";
+        badge.innerText="Safe";
+    }
+    else if(p<0.6){
+        badge.style.background="orange";
+        badge.innerText="Warning";
+    }
+    else{
+        badge.style.background="red";
+        badge.innerText="High Risk!";
+    }
+}
+
+setInterval(update,1000);
+update();
+</script>
+
+</body>
+</html>

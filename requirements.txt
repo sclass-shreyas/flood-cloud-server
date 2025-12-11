@@ -1,0 +1,6 @@
+flask
+numpy
+scikit-learn
+requests
+gunicorn
+tensorflow-cpu==2.15.0
